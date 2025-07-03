@@ -18,7 +18,7 @@ function App() {
 
   return (
     <>
-     <main>{
+     <main className="m-20 text-justify">{
       JSON.stringify(hotels)}</main>
     </>
   )
