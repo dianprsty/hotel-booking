@@ -1,6 +1,6 @@
 import { Heart, Star } from "lucide-react";
 import type { IHotelData } from "../types";
-import { useState } from "react";
+import { memo, useState } from "react";
 
 interface IHotelCardProps {
   data: IHotelData;
@@ -29,9 +29,7 @@ const formatDate = (s: string, e: string) => {
   return `${startMonth} ${startDate}, ${startYear} - ${endMonth} ${endDate}, ${endYear}`;
 };
 
-export default function HotelCard({
-  data: { imageUrl, location, ...data },
-}: IHotelCardProps) {
+function HotelCard({ data: { imageUrl, location, ...data } }: IHotelCardProps) {
   const [isLiked, setIsLiked] = useState(false);
   return (
     <div>
@@ -73,3 +71,5 @@ export default function HotelCard({
     </div>
   );
 }
+
+export default memo(HotelCard);

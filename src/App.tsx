@@ -6,17 +6,43 @@ import {
   query,
   orderByKey,
 } from "firebase/database";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useState,
+  type CSSProperties,
+} from "react";
 import { db } from "./utils";
 import HotelCard from "./componnts/HotelCard";
 import type { IHotelData } from "./types";
+import InfiniteLoader from "react-window-infinite-loader";
+import { FixedSizeList } from "react-window";
 
 const limit = 5;
+
+const HotelRow = memo(
+  ({
+    data,
+    index,
+    style,
+  }: {
+    data: IHotelData[];
+    index: number;
+    style: CSSProperties;
+  }) => {
+    return (
+      <div style={style}>
+        <HotelCard data={data[index]} />
+      </div>
+    );
+  },
+);
+
 function App() {
   const [hotels, setHotels] = useState<IHotelData[]>([]);
   const [lastItemKey, setLastItemKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const loadingRef = useRef<HTMLDivElement | null>(null);
 
   const loadHotels = useCallback(
     (after?: string) => {
@@ -32,7 +58,8 @@ function App() {
       const hotelsQuery = query(ref(db, "hotels"), ...queryConstraint);
       onValue(hotelsQuery, (snapshot) => {
         if (snapshot.exists()) {
-          const lastKey = Object.keys(snapshot.val())[limit - 1];
+          const hotelKeys = Object.keys(snapshot.val());
+          const lastKey = hotelKeys[hotelKeys.length - 1];
           const hotelsData = Object.values(snapshot.val()) as IHotelData[];
           setLastItemKey(lastKey);
           setHotels((prev) =>
@@ -50,44 +77,31 @@ function App() {
     loadHotels();
   }, [loadHotels]);
 
-  useEffect(() => {
-    const callback = (entries: IntersectionObserverEntry[]) => {
-      if (entries[0].isIntersecting && lastItemKey && !loading) {
-        loadHotels(lastItemKey);
-      }
-    };
-
-    const option: IntersectionObserverInit = { threshold: 0.1 };
-    const observer = new IntersectionObserver(callback, option);
-
-    const loadingCurrent = loadingRef.current;
-    if (loadingCurrent) {
-      observer.observe(loadingCurrent);
-    }
-    return () => {
-      if (loadingCurrent) {
-        observer.unobserve(loadingCurrent);
-      }
-    };
-  }, [lastItemKey, loadHotels, loading]);
-
   return (
     <>
       <main className="p-4">
         <h1 className="text-2xl font-bold mb-4">Explore</h1>
         <section className="flex flex-col gap-6">
-          {hotels.map((hotel: IHotelData) => (
-            <HotelCard key={hotel.id} data={hotel} />
-          ))}
+          <InfiniteLoader
+            isItemLoaded={(index) => !loading && !!hotels[index]}
+            itemCount={1000}
+            loadMoreItems={() => loadHotels(lastItemKey || undefined)}
+          >
+            {({ onItemsRendered, ref }) => (
+              <FixedSizeList
+                itemSize={450}
+                itemCount={hotels.length}
+                itemData={hotels}
+                onItemsRendered={onItemsRendered}
+                ref={ref}
+                width="100%"
+                height={window.innerHeight - 80}
+              >
+                {HotelRow}
+              </FixedSizeList>
+            )}
+          </InfiniteLoader>
         </section>
-        <div
-          ref={loadingRef}
-          className="w-full flex justify-center items-center"
-        >
-          {loading && (
-            <div className="w-6 h-6 mx-auto my-8 animate-spin rounded-full  border-2 border-gray-300 border-y-gray-900"></div>
-          )}
-        </div>
       </main>
     </>
   );
